@@ -1,23 +1,25 @@
-# 🏥 Clinical Note QA — RAG over MIMIC-III/IV
+# 🏥 Clinical Note QA — RAG over MTSamples
 
-A **Retrieval-Augmented Generation (RAG)** system for querying clinical discharge summaries using natural language. Built on MIMIC-III/IV EHR data with a FAISS vector store and LLaMA 3 via Groq.
+A **Retrieval-Augmented Generation (RAG)** system for querying medical transcription notes using natural language. Built on the MTSamples dataset with a FAISS vector store and LLaMA 3.3 70B via Groq.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![FAISS](https://img.shields.io/badge/Vector%20Store-FAISS-orange)
-![LLM](https://img.shields.io/badge/LLM-LLaMA%203%208B-green)
+![LLM](https://img.shields.io/badge/LLM-LLaMA%203.3%2070B-green)
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-red)
 
 ---
 
 ## 📌 Overview
 
-Clinical notes in EHR systems contain rich, unstructured information that is difficult to query at scale. This project builds a full RAG pipeline that:
+Clinical notes in medical records contain rich, unstructured information that is difficult to query at scale. This project builds a full RAG pipeline that:
 
-1. **Chunks** 50K+ MIMIC discharge summaries into overlapping segments
+1. **Chunks** 4000+ MTSamples medical transcription notes into overlapping segments
 2. **Embeds** them using `sentence-transformers/all-MiniLM-L6-v2` and stores in a FAISS index
 3. **Retrieves** the most semantically relevant chunks for a natural language query
-4. **Generates** grounded, cited answers using LLaMA 3 8B (via Groq API)
+4. **Generates** grounded, cited answers using LLaMA 3.3 70B (via Groq API)
 5. **Serves** everything through an interactive Streamlit UI
+
+![Demo Screenshot](demo.png)
 
 ---
 
@@ -33,10 +35,10 @@ Sentence Embedding (all-MiniLM-L6-v2)
 FAISS Similarity Search (IndexFlatIP, cosine)
   │
   ▼
-Top-K Retrieved Chunks (with patient/admission metadata)
+Top-K Retrieved Chunks (with specialty + note metadata)
   │
   ▼
-LLaMA 3 8B via Groq (grounded generation with citations)
+LLaMA 3.3 70B via Groq (grounded generation with citations)
   │
   ▼
 Answer + Source Snippets
@@ -47,18 +49,15 @@ Answer + Source Snippets
 ## 📁 Project Structure
 
 ```
-mimic-clinical-rag/
+clinical-rag-mtsamples/
 │
-├── 1_preprocess.py        # Load MIMIC, clean PHI, chunk notes
+├── 1_preprocess.py        # Load MTSamples, clean and chunk notes
 ├── 2_build_index.py       # Embed chunks, build FAISS index
 ├── rag_pipeline.py        # Core RAG: retrieve + generate
 ├── app.py                 # Streamlit UI
 ├── requirements.txt
-├── data/                  # (gitignored — MIMIC access required)
-│   ├── NOTEEVENTS.csv
-│   ├── processed_notes.jsonl
-│   ├── faiss_index.bin
-│   └── metadata.pkl
+├── data/                  # (gitignored — add mtsamples.csv here)
+│   └── mtsamples.csv
 └── README.md
 ```
 
@@ -69,8 +68,8 @@ mimic-clinical-rag/
 ### 1. Prerequisites
 
 - Python 3.10+
-- [PhysioNet credentialed access](https://physionet.org/settings/credentialing/) to MIMIC-III or MIMIC-IV
 - Free [Groq API key](https://console.groq.com) for LLM inference
+- MTSamples dataset from [Kaggle](https://www.kaggle.com/datasets/tboyle10/medicaltranscriptions)
 
 ### 2. Install dependencies
 
@@ -80,7 +79,7 @@ pip install -r requirements.txt
 
 ### 3. Add your data
 
-Place your MIMIC data file at `data/NOTEEVENTS.csv` (MIMIC-III) or `data/discharge.csv` (MIMIC-IV).
+Download `mtsamples.csv` from Kaggle and place it in the `data/` folder.
 
 ### 4. Run the pipeline
 
@@ -91,9 +90,11 @@ python 1_preprocess.py
 # Step 2: Embed and build FAISS index
 python 2_build_index.py
 
-# Step 3: Launch the app
-export GROQ_API_KEY=your_key_here
-streamlit run app.py
+# Step 3: Set your Groq API key and launch the app
+export GROQ_API_KEY=your_key_here        # Mac/Linux
+$env:GROQ_API_KEY="your_key_here"        # Windows PowerShell
+
+python -m streamlit run app.py
 ```
 
 ---
@@ -102,11 +103,11 @@ streamlit run app.py
 
 | Query | What it tests |
 |---|---|
-| *What medications was the patient prescribed at discharge?* | Medication extraction |
-| *What was the primary diagnosis for this admission?* | Diagnosis retrieval |
-| *Did the patient have a history of diabetes?* | Medical history lookup |
-| *What follow-up instructions were given?* | Discharge planning |
-| *Were there any complications during the stay?* | Adverse event detection |
+| *What medications were prescribed to the patient?* | Medication extraction |
+| *What was the primary diagnosis?* | Diagnosis retrieval |
+| *Describe the surgical procedure performed.* | Procedure summarization |
+| *What were the patient's presenting symptoms?* | Symptom identification |
+| *What follow-up care was recommended?* | Discharge planning |
 
 ---
 
@@ -114,20 +115,27 @@ streamlit run app.py
 
 | Component | Tool |
 |---|---|
-| Dataset | MIMIC-III / MIMIC-IV (PhysioNet) |
+| Dataset | MTSamples (4000+ medical transcriptions via Kaggle) |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
 | Vector Store | FAISS (`IndexFlatIP`, cosine similarity) |
-| LLM | LLaMA 3 8B via Groq API |
+| LLM | LLaMA 3.3 70B via Groq API |
 | UI | Streamlit |
 | Language | Python 3.10+ |
 
 ---
 
-## ⚠️ Data Access & Ethics
+## 🔮 Roadmap
 
-This project uses [MIMIC-III](https://physionet.org/content/mimiciii/) and [MIMIC-IV](https://physionet.org/content/mimiciv/), which require credentialed PhysioNet access. The dataset contains de-identified patient data and must be used in accordance with the PhysioNet data use agreement.
+- [ ] Full MIMIC-III/IV integration (pending PhysioNet credentialing)
+- [ ] Re-ranking layer for improved retrieval precision
+- [ ] Specialty-based filtering in the UI
+- [ ] Evaluation metrics (RAGAS framework)
 
-**This system is for research purposes only and is not intended for clinical decision-making.**
+---
+
+## ⚠️ Disclaimer
+
+This system is for research purposes only and is not intended for clinical decision-making.
 
 ---
 
